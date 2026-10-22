@@ -1,0 +1,105 @@
+{
+  "version": 1,
+  "title": "02 / Your first backbeat",
+  "bpm": 75,
+  "beatsPerBar": 4,
+  "bars": 2,
+  "notes": [
+    {
+      "beat": 0,
+      "drum": "hihat"
+    },
+    {
+      "beat": 0,
+      "drum": "kick"
+    },
+    {
+      "beat": 0.5,
+      "drum": "hihat"
+    },
+    {
+      "beat": 1,
+      "drum": "hihat"
+    },
+    {
+      "beat": 1,
+      "drum": "snare"
+    },
+    {
+      "beat": 1.5,
+      "drum": "hihat"
+    },
+    {
+      "beat": 2,
+      "drum": "hihat"
+    },
+    {
+      "beat": 2,
+      "drum": "kick"
+    },
+    {
+      "beat": 2.5,
+      "drum": "hihat"
+    },
+    {
+      "beat": 3,
+      "drum": "hihat"
+    },
+    {
+      "beat": 3,
+      "drum": "snare"
+    },
+    {
+      "beat": 3.5,
+      "drum": "hihat"
+    },
+    {
+      "beat": 4,
+      "drum": "hihat"
+    },
+    {
+      "beat": 4,
+      "drum": "kick"
+    },
+    {
+      "beat": 4.5,
+      "drum": "hihat"
+    },
+    {
+      "beat": 5,
+      "drum": "hihat"
+    },
+    {
+      "beat": 5,
+      "drum": "snare"
+    },
+    {
+      "beat": 5.5,
+      "drum": "hihat"
+    },
+    {
+      "beat": 6,
+      "drum": "hihat"
+    },
+    {
+      "beat": 6,
+      "drum": "kick"
+    },
+    {
+      "beat": 6.5,
+      "drum": "hihat"
+    },
+    {
+      "beat": 7,
+      "drum": "hihat"
+    },
+    {
+      "beat": 7,
+      "drum": "snare"
+    },
+    {
+      "beat": 7.5,
+      "drum": "hihat"
+    }
+  ]
+}
