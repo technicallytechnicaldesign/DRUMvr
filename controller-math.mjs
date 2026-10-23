@@ -11,9 +11,9 @@ export function normalizeRotation(value){
   return Number.isFinite(degrees)?((Math.round((degrees%360)/ROTATION_STEP)*ROTATION_STEP)%360+360)%360:0;
 }
 export function stationYaw(facing,degrees){return facing+normalizeRotation(degrees)*Math.PI/180;}
-export function controlAction(u,v){
+export function controlAction(u,v,rotation=false){
   if(!Number.isFinite(u)||!Number.isFinite(v)||u<0||u>1||v<0||v>1)return null;
-  return v>=.5?'toggle':u<1/3?'left':u<2/3?'reset':'right';
+  return !rotation?'toggle':u<1/3?'left':u<2/3?'reset':'right';
 }
 export function deadAxis(value){return Math.abs(value||0)>.25?value:0;}
 

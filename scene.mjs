@@ -1,7 +1,7 @@
 import * as THREE from './vendor/three.module.js';
-import { DRUMS } from './core.mjs?v=3';
-import { canvasScore } from './notation.mjs?v=3';
-import { KIT_LAYOUT, STICK_TIP, StrikeTracker, deadAxis, normalizeRotation, stationYaw, controlAction, ROTATION_STEP } from './controller-math.mjs?v=3';
+import { DRUMS } from './core.mjs?v=4';
+import { canvasScore } from './notation.mjs?v=4';
+import { KIT_LAYOUT, STICK_TIP, StrikeTracker, deadAxis, normalizeRotation, stationYaw, controlAction, ROTATION_STEP } from './controller-math.mjs?v=4';
 
 export function createKit(container, onPad, onToggle, onAdjust = ()=>{}, onRotate = ()=>{}) {
   const scene=new THREE.Scene();scene.background=new THREE.Color('#ffffff');scene.fog=new THREE.Fog('#ffffff',5,16);
@@ -50,9 +50,13 @@ export function createKit(container, onPad, onToggle, onAdjust = ()=>{}, onRotat
   const boardCanvas=document.createElement('canvas');boardCanvas.width=1024;boardCanvas.height=300;
   const boardCtx=boardCanvas.getContext('2d'),boardTexture=new THREE.CanvasTexture(boardCanvas);boardTexture.colorSpace=THREE.SRGBColorSpace;
   const board=new THREE.Mesh(new THREE.PlaneGeometry(1.75,.513),new THREE.MeshBasicMaterial({map:boardTexture}));board.position.set(0,1.65,-1.65);station.add(board);board.visible=false;
-  const controlCanvas=document.createElement('canvas');controlCanvas.width=1024;controlCanvas.height=240;
+  const controlCanvas=document.createElement('canvas');controlCanvas.width=1024;controlCanvas.height=120;
   const controlCtx=controlCanvas.getContext('2d'),controlTexture=new THREE.CanvasTexture(controlCanvas);controlTexture.colorSpace=THREE.SRGBColorSpace;
-  const control=new THREE.Mesh(new THREE.PlaneGeometry(1.60,.375),new THREE.MeshBasicMaterial({map:controlTexture}));control.position.set(0,1.18,-1.64);station.add(control);control.visible=false;
+  const control=new THREE.Mesh(new THREE.PlaneGeometry(1.25,.147),new THREE.MeshBasicMaterial({map:controlTexture}));control.position.set(0,1.30,-1.64);station.add(control);control.visible=false;
+  const turnCanvas=document.createElement('canvas');turnCanvas.width=1024;turnCanvas.height=120;
+  const turnCtx=turnCanvas.getContext('2d'),turnTexture=new THREE.CanvasTexture(turnCanvas);turnTexture.colorSpace=THREE.SRGBColorSpace;
+  const turnControl=new THREE.Mesh(new THREE.PlaneGeometry(1.60,.1875),new THREE.MeshBasicMaterial({map:turnTexture,depthTest:false,transparent:true}));
+  turnControl.position.set(0,2.05,-1.64);turnControl.renderOrder=1000;station.add(turnControl);turnControl.visible=false;
   function pulse(hand){
     const actuator=hand.source?.gamepad?.hapticActuators?.[0];
     if(actuator?.pulse)try{Promise.resolve(actuator.pulse(.35,28)).catch(()=>{});}catch{}
@@ -77,9 +81,9 @@ export function createKit(container, onPad, onToggle, onAdjust = ()=>{}, onRotat
       if(!renderer.xr.isPresenting)return;
       station.updateMatrixWorld(true);controller.updateWorldMatrix(true,false);rotation.extractRotation(controller.matrixWorld);
       raycaster.ray.origin.setFromMatrixPosition(controller.matrixWorld);raycaster.ray.direction.set(0,0,-1).applyMatrix4(rotation);
-      const panelHit=raycaster.intersectObject(control)[0];
+      const panelHit=raycaster.intersectObjects([turnControl,control])[0];
       if(panelHit){
-        const action=controlAction(panelHit.uv.x,panelHit.uv.y);
+        const action=controlAction(panelHit.uv.x,panelHit.uv.y,panelHit.object===turnControl);
         if(action==='toggle')onToggle();
         else if(action==='left')rotateTo(kitRotation+ROTATION_STEP);
         else if(action==='right')rotateTo(kitRotation-ROTATION_STEP);
@@ -123,7 +127,7 @@ export function createKit(container, onPad, onToggle, onAdjust = ()=>{}, onRotat
 
       hand.controller.updateWorldMatrix(true,false);rotation.extractRotation(hand.controller.matrixWorld);
       raycaster.ray.origin.setFromMatrixPosition(hand.controller.matrixWorld);raycaster.ray.direction.set(0,0,-1).applyMatrix4(rotation);
-      hand.line.visible=raycaster.intersectObject(control).length>0;
+      hand.line.visible=raycaster.intersectObjects([turnControl,control]).length>0;
     }
   }
   renderer.domElement.addEventListener('pointerdown',e=>{
@@ -132,8 +136,8 @@ export function createKit(container, onPad, onToggle, onAdjust = ()=>{}, onRotat
     raycaster.setFromCamera(pointer,camera);const hit=raycaster.intersectObjects(pickables)[0];if(hit)onPad(hit.object.userData.drum);
   });
   const observer=new ResizeObserver(()=>{const w=container.clientWidth,h=container.clientHeight;camera.aspect=w/h;camera.updateProjectionMatrix();if(!renderer.xr.isPresenting)renderer.setSize(w,h);});observer.observe(container);
-  renderer.xr.addEventListener('sessionstart',()=>{board.visible=true;control.visible=true;recenterPending=true;keepRotationOnRecenter=true;resetStrokes();});
-  renderer.xr.addEventListener('sessionend',()=>{board.visible=false;control.visible=false;station.position.set(0,0,0);facingYaw=0;station.rotation.set(0,stationYaw(facingYaw,kitRotation),0);resetStrokes();desktopCamera();renderer.setSize(container.clientWidth,container.clientHeight);});
+  renderer.xr.addEventListener('sessionstart',()=>{board.visible=true;control.visible=true;turnControl.visible=true;recenterPending=true;keepRotationOnRecenter=true;resetStrokes();});
+  renderer.xr.addEventListener('sessionend',()=>{board.visible=false;control.visible=false;turnControl.visible=false;station.position.set(0,0,0);facingYaw=0;station.rotation.set(0,stationYaw(facingYaw,kitRotation),0);resetStrokes();desktopCamera();renderer.setSize(container.clientWidth,container.clientHeight);});
   return {
     renderer,
     recenter:requestRecenter,
@@ -151,11 +155,13 @@ export function createKit(container, onPad, onToggle, onAdjust = ()=>{}, onRotat
     },
     score(primitives,title,subtitle,running){
       canvasScore(boardCtx,primitives,title,subtitle);boardTexture.needsUpdate=true;
-      controlCtx.fillStyle='#ffffff';controlCtx.fillRect(0,0,1024,240);controlCtx.strokeStyle='#111111';controlCtx.lineWidth=3;controlCtx.strokeRect(2,2,1020,236);
+      controlCtx.fillStyle='#ffffff';controlCtx.fillRect(0,0,1024,120);controlCtx.strokeStyle='#111111';controlCtx.lineWidth=3;controlCtx.strokeRect(2,2,1020,116);
       controlCtx.fillStyle='#111111';controlCtx.font='29px monospace';controlCtx.textAlign='center';controlCtx.fillText(running?'STOP PRACTICE  /  A OR X':'START PRACTICE  /  A OR X',512,44);
       controlCtx.font='21px monospace';controlCtx.fillText('TRIGGER: KICK   |   B / Y: RECENTER',512,84);
-      controlCtx.beginPath();controlCtx.moveTo(2,120);controlCtx.lineTo(1022,120);for(const x of[341,683]){controlCtx.moveTo(x,120);controlCtx.lineTo(x,238);}controlCtx.stroke();
-      controlCtx.font='28px monospace';controlCtx.fillText('LEFT 15°',170,182);controlCtx.fillText('RESET / '+kitRotation+'°',512,182);controlCtx.fillText('RIGHT 15°',854,182);controlTexture.needsUpdate=true;
+      controlTexture.needsUpdate=true;
+      turnCtx.fillStyle='#ffffff';turnCtx.fillRect(0,0,1024,120);turnCtx.strokeStyle='#111111';turnCtx.lineWidth=3;turnCtx.strokeRect(2,2,1020,116);
+      turnCtx.beginPath();for(const x of[341,683]){turnCtx.moveTo(x,2);turnCtx.lineTo(x,118);}turnCtx.stroke();
+      turnCtx.fillStyle='#111111';turnCtx.textAlign='center';turnCtx.font='28px monospace';turnCtx.fillText('LEFT 15°',170,70);turnCtx.fillText('RESET / '+kitRotation+'°',512,70);turnCtx.fillText('RIGHT 15°',854,70);turnTexture.needsUpdate=true;
     },
     animate(fn){renderer.setAnimationLoop((time,frame)=>{controllers(time,frame);fn();renderer.render(scene,camera);});}
   };

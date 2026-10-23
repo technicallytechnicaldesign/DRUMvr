@@ -1,7 +1,7 @@
-import { DRUMS, PRESETS, makePreset, validateChart, loopRegion, loopBeat, notesAt, midiDrum } from './core.mjs?v=3';
-import { notation, svgScore } from './notation.mjs?v=3';
-import { PracticeAudio } from './audio.mjs?v=3';
-import { normalizeRotation, ROTATION_STEP } from './controller-math.mjs?v=3';
+import { DRUMS, PRESETS, makePreset, validateChart, loopRegion, loopBeat, notesAt, midiDrum } from './core.mjs?v=4';
+import { notation, svgScore } from './notation.mjs?v=4';
+import { PracticeAudio } from './audio.mjs?v=4';
+import { normalizeRotation, ROTATION_STEP } from './controller-math.mjs?v=4';
 const $=id=>document.getElementById(id),audio=new PracticeAudio();
 let chart=makePreset(),kit=null,region=loopRegion(chart,1,2),running=false,starting=false,lastPaint=0,midi=null,session=null,manualHits={};
 const status=(text,error=false)=>{$('status').textContent=text;$('status').classList.toggle('error',error)};
@@ -106,6 +106,6 @@ $('vr').onclick=async()=>{
   }catch(e){if(session){try{await session.end()}catch{}session=null}status(`Cannot enter VR: ${e.message}`,true)}
 };
 try{
-  const {createKit}=await import('./scene.mjs?v=3');kit=createKit(document.querySelector('.scene'),hit,toggle,(height,distance)=>{$('height').value=Math.round(height*100);$('distance').value=Math.round(distance*100);$('height-value').textContent=`${Math.round(height*100)} cm`;$('distance-value').textContent=`${Math.round(distance*100)} cm`},rotationChanged);kit.rotate(kitRotation);$('loading').remove();kit.animate(()=>paint());$('play').disabled=false;status('Ready. Free play with the pads, or start a guided practice.');paint(true);
+  const {createKit}=await import('./scene.mjs?v=4');kit=createKit(document.querySelector('.scene'),hit,toggle,(height,distance)=>{$('height').value=Math.round(height*100);$('distance').value=Math.round(distance*100);$('height-value').textContent=`${Math.round(height*100)} cm`;$('distance-value').textContent=`${Math.round(distance*100)} cm`},rotationChanged);kit.rotate(kitRotation);$('loading').remove();kit.animate(()=>paint());$('play').disabled=false;status('Ready. Free play with the pads, or start a guided practice.');paint(true);
   if(navigator.xr&&window.isSecureContext&&await navigator.xr.isSessionSupported('immersive-vr')){$('vr').disabled=false;$('vr').textContent='Enter VR'}else $('vr').textContent='VR headset needed';
 }catch(e){$('loading').textContent='The 3D kit could not load. See the setup notes.';$('play').disabled=false;status(`3D unavailable: ${e.message}. The score and audio still work.`,true);const frame=()=>{paint();requestAnimationFrame(frame)};frame();$('vr').textContent='VR unavailable'}

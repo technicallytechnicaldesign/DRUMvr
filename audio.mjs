@@ -1,4 +1,4 @@
-import { notesAt, loopBeat, audioRegion } from './core.mjs?v=3';
+import { notesAt, loopBeat, audioRegion } from './core.mjs?v=4';
 export class PracticeAudio {
   constructor(){this.ctx=null;this.running=false;this.nodes=new Set();this.song=null;this.guide=true;this.click=true;}
   async ready(){
