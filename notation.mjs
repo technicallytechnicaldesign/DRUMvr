@@ -1,5 +1,5 @@
-import { DRUMS, notesAt } from './core.mjs?v=2';
-                                                                              
+import { DRUMS, notesAt } from './core.mjs?v=3';
+
 export function notation(chart, pageBar, cursorBeat, activeDrums = []) {
   const p = [];
   const line=(x,y,x2,y2,color='#444444',width=1)=>p.push({type:'line',x,y,x2,y2,color,width});
@@ -14,7 +14,7 @@ export function notation(chart, pageBar, cursorBeat, activeDrums = []) {
   function head(n, x, stemEnd, down) {
     const y=DRUMS[n.drum].y;
     const color=activeDrums.includes(n.drum)&&Math.abs(n.beat-Math.floor(cursorBeat*2)/2)<.01?'#927400':'#111111';
-    p.push({type:'head',x,y,cross:n.drum==='hihat'||n.drum==='crash',color});
+    p.push({type:'head',x,y,cross:n.drum==='hihat'||n.drum==='crash'||n.drum==='ride',color});
     if(y<31)line(x-11,y,x+11,y,color);
     line(x+(down?-6:6),y,x+(down?-6:6),stemEnd,color,1.5);
   }

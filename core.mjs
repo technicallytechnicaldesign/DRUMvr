@@ -2,9 +2,11 @@ export const DRUMS = {
   kick: { label: 'Kick', key: 'B', midi: [35, 36], y: 87 },
   snare: { label: 'Snare', key: 'F', midi: [38, 40], y: 59 },
   hihat: { label: 'Hi-hat', key: 'J', midi: [42, 44, 46], y: 31 },
-  tom: { label: 'Tom', key: 'G', midi: [47, 48, 50], y: 52 },
-  floor: { label: 'Floor tom', key: 'H', midi: [41, 43, 45], y: 73 },
-  crash: { label: 'Crash', key: 'K', midi: [49, 51, 57, 59], y: 24 }
+  tom: { label: 'High tom', key: 'G', midi: [48, 50], y: 52 },
+  midtom: { label: 'Medium tom', key: 'T', midi: [45, 47], y: 66 },
+  floor: { label: 'Floor tom', key: 'H', midi: [41, 43], y: 73 },
+  crash: { label: 'Crash', key: 'K', midi: [49, 52, 55, 57], y: 24 },
+  ride: { label: 'Ride', key: 'L', midi: [51, 53, 59], y: 17 }
 };
 export const mod = (n, m) => ((n % m) + m) % m;
 export const PRESETS = {

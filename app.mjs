@@ -1,9 +1,19 @@
-import { DRUMS, PRESETS, makePreset, validateChart, loopRegion, loopBeat, notesAt, midiDrum } from './core.mjs?v=2';
-import { notation, svgScore } from './notation.mjs?v=2';
-import { PracticeAudio } from './audio.mjs?v=2';
+import { DRUMS, PRESETS, makePreset, validateChart, loopRegion, loopBeat, notesAt, midiDrum } from './core.mjs?v=3';
+import { notation, svgScore } from './notation.mjs?v=3';
+import { PracticeAudio } from './audio.mjs?v=3';
+import { normalizeRotation, ROTATION_STEP } from './controller-math.mjs?v=3';
 const $=id=>document.getElementById(id),audio=new PracticeAudio();
 let chart=makePreset(),kit=null,region=loopRegion(chart,1,2),running=false,starting=false,lastPaint=0,midi=null,session=null,manualHits={};
 const status=(text,error=false)=>{$('status').textContent=text;$('status').classList.toggle('error',error)};
+const rotationKey='drumvr-kit-yaw-v1';let kitRotation=0;
+try{kitRotation=normalizeRotation(localStorage.getItem(rotationKey));}catch{}
+function showRotation(){const angle=normalizeRotation(kitRotation);$('rotation-value').textContent=angle===0?'0°':angle<=180?`${angle}° left`:`${360-angle}° right`;}
+function rotationChanged(value){kitRotation=normalizeRotation(value);showRotation();try{localStorage.setItem(rotationKey,String(kitRotation));$('rotation-hint').textContent='Angle remembered on this device. B/Y recenter faces you and clears it.';}catch{$('rotation-hint').textContent='Angle works now, but this browser cannot remember it.';}}
+function rotateKit(value){const angle=normalizeRotation(value);if(kit)kit.rotate(angle);else rotationChanged(angle);}
+$('rotate-left').onclick=()=>rotateKit(kitRotation+ROTATION_STEP);
+$('rotate-right').onclick=()=>rotateKit(kitRotation-ROTATION_STEP);
+$('rotate-reset').onclick=()=>rotateKit(0);
+showRotation();
 const locked=['exercise','tempo','first-bar','last-bar','song-file','offset','chart-file','clear-song'];
 function stop(message='Stopped. Start again for a four-beat count-in.'){
   running=false;audio.stop();$('play').textContent='Start practice';locked.forEach(id=>$(id).disabled=false);$('clear-song').disabled=!audio.song;status(message);paint(true);
@@ -52,6 +62,7 @@ for(const [id,drum]of Object.entries(DRUMS)){
   const button=document.createElement('button');button.id=`pad-${id}`;button.innerHTML=`${drum.label}<kbd>${drum.key}</kbd>`;button.title=`Play ${drum.label}`;button.onclick=()=>hit(id);$('pads').append(button);
 }
 $('play').onclick=toggle;
+document.querySelector('a[href="#controls-help"]').onclick=()=>$('controls-help').open=true;
 $('exercise').onchange=()=>{setChart(makePreset($('exercise').value));$('lesson').textContent=PRESETS[$('exercise').value].description};
 $('lesson').textContent=PRESETS.backbeat.description;
 $('tempo').oninput=()=>{$('tempo-value').textContent=$('tempo').value;paint(true)};
@@ -88,13 +99,13 @@ $('vr').onclick=async()=>{
   try{
     if(session){await session.end();return}
     await audio.ready();
-                                                                                    
+
     const xr=await navigator.xr.requestSession('immersive-vr',{requiredFeatures:['local-floor']});session=xr;
     xr.addEventListener('end',()=>{session=null;$('vr').textContent='Enter VR';$('mode-label').textContent='DESKTOP PREVIEW';stop('VR session ended.')},{once:true});
-    await kit.renderer.xr.setSession(xr);$('vr').textContent='Exit VR';$('mode-label').textContent='QUEST CONTROLLER STICKS';status('Swing to hit. Trigger: kick. A/X: practice. B/Y: recenter. Thumbsticks: reach and height.');
+    await kit.renderer.xr.setSession(xr);$('vr').textContent='Exit VR';$('mode-label').textContent='QUEST CONTROLLER STICKS';status('Swing to hit. Trigger: kick. A/X: practice. B/Y: recenter. Thumbsticks: reach and height. Point at LEFT / RIGHT / RESET to turn the kit.');
   }catch(e){if(session){try{await session.end()}catch{}session=null}status(`Cannot enter VR: ${e.message}`,true)}
 };
 try{
-  const {createKit}=await import('./scene.mjs?v=2');kit=createKit(document.querySelector('.scene'),hit,toggle,(height,distance)=>{$('height').value=Math.round(height*100);$('distance').value=Math.round(distance*100);$('height-value').textContent=`${Math.round(height*100)} cm`;$('distance-value').textContent=`${Math.round(distance*100)} cm`});$('loading').remove();kit.animate(()=>paint());$('play').disabled=false;status('Ready. Free play with the pads, or start a guided practice.');paint(true);
+  const {createKit}=await import('./scene.mjs?v=3');kit=createKit(document.querySelector('.scene'),hit,toggle,(height,distance)=>{$('height').value=Math.round(height*100);$('distance').value=Math.round(distance*100);$('height-value').textContent=`${Math.round(height*100)} cm`;$('distance-value').textContent=`${Math.round(distance*100)} cm`},rotationChanged);kit.rotate(kitRotation);$('loading').remove();kit.animate(()=>paint());$('play').disabled=false;status('Ready. Free play with the pads, or start a guided practice.');paint(true);
   if(navigator.xr&&window.isSecureContext&&await navigator.xr.isSessionSupported('immersive-vr')){$('vr').disabled=false;$('vr').textContent='Enter VR'}else $('vr').textContent='VR headset needed';
 }catch(e){$('loading').textContent='The 3D kit could not load. See the setup notes.';$('play').disabled=false;status(`3D unavailable: ${e.message}. The score and audio still work.`,true);const frame=()=>{paint();requestAnimationFrame(frame)};frame();$('vr').textContent='VR unavailable'}

@@ -1,15 +1,26 @@
 export const KIT_LAYOUT = {
   kick: [.12,.35,-.88,.25], snare: [-.20,.73,-.47,.19],
-  hihat: [-.61,.97,-.67,.22], tom: [-.04,1,-.96,.17],
-  floor: [.55,.73,-.53,.22], crash: [.56,1.23,-1.03,.27]
+  hihat: [-.61,.97,-.67,.22], tom: [-.15,1.02,-1.04,.17],
+  midtom: [.23,.98,-1.03,.19], floor: [.58,.73,-.48,.23],
+  crash: [-.49,1.23,-1.17,.27], ride: [.62,1.16,-1.05,.29]
 };
 export const STICK_TIP = [0,0,-.40];
+export const ROTATION_STEP = 15;
+export function normalizeRotation(value){
+  const degrees=Number(value);
+  return Number.isFinite(degrees)?((Math.round((degrees%360)/ROTATION_STEP)*ROTATION_STEP)%360+360)%360:0;
+}
+export function stationYaw(facing,degrees){return facing+normalizeRotation(degrees)*Math.PI/180;}
+export function controlAction(u,v){
+  if(!Number.isFinite(u)||!Number.isFinite(v)||u<0||u>1||v<0||v>1)return null;
+  return v>=.5?'toggle':u<1/3?'left':u<2/3?'reset':'right';
+}
 export function deadAxis(value){return Math.abs(value||0)>.25?value:0;}
-                                                                                         
+
 export function sweptDrumHit(previous,current,dt,layout=KIT_LAYOUT){
   if(!previous||!current||!Number.isFinite(dt)||dt<=0||dt>.1)return null;
   const distance=Math.hypot(current.x-previous.x,current.y-previous.y,current.z-previous.z);
-  if(distance>.6||distance/dt>15)return null;                                                
+  if(distance>.6||distance/dt>15)return null;
   const speed=(previous.y-current.y)/dt;if(speed<.08)return null;
   let best=null;
   for(const[drum,[x,y,z,r]]of Object.entries(layout)){

@@ -1,4 +1,4 @@
-import { notesAt, loopBeat, audioRegion } from './core.mjs?v=2';
+import { notesAt, loopBeat, audioRegion } from './core.mjs?v=3';
 export class PracticeAudio {
   constructor(){this.ctx=null;this.running=false;this.nodes=new Set();this.song=null;this.guide=true;this.click=true;}
   async ready(){
@@ -12,19 +12,24 @@ export class PracticeAudio {
   }
   voice(kind,when=this.ctx.currentTime,volume=1){
     const ctx=this.ctx,t=Math.max(when,ctx.currentTime),gain=ctx.createGain();gain.connect(this.master);
-    const noise=['snare','hihat','crash'].includes(kind);
+    const noise=['snare','hihat','crash','ride'].includes(kind);
     const src=noise?ctx.createBufferSource():ctx.createOscillator();
     let duration=.15;
     if(noise){
-      src.buffer=this.noise;const filter=ctx.createBiquadFilter();filter.type='highpass';filter.frequency.value=kind==='snare'?900:6500;
-      src.connect(filter);filter.connect(gain);duration=kind==='crash'?.7:kind==='snare'?.17:.065;
+      src.buffer=this.noise;const filter=ctx.createBiquadFilter();filter.type='highpass';filter.frequency.value=kind==='snare'?900:kind==='ride'?4200:6500;
+      src.connect(filter);filter.connect(gain);duration=kind==='ride'?.85:kind==='crash'?.7:kind==='snare'?.17:.065;
     }else{
-      src.type='sine';const f=kind==='kick'?145:kind==='tom'?220:kind==='floor'?130:kind==='tick-high'?1200:850;
+      src.type='sine';const f=kind==='kick'?145:kind==='tom'?220:kind==='midtom'?175:kind==='floor'?130:kind==='tick-high'?1200:850;
       src.frequency.setValueAtTime(f,t);src.frequency.exponentialRampToValueAtTime(kind==='kick'?42:f*.75,t+.12);src.connect(gain);
       if(kind.startsWith('tick'))duration=.035;
     }
     gain.gain.setValueAtTime(.001,t);gain.gain.linearRampToValueAtTime(volume*(noise?.55:.85),t+.002);gain.gain.exponentialRampToValueAtTime(.001,t+duration);
     this.nodes.add(src);src.onended=()=>{this.nodes.delete(src);src.disconnect();gain.disconnect()};src.start(t);src.stop(t+duration+.01);
+    if(kind==='ride')for(const frequency of [580,1090,1780,2520,3490]){
+      const partial=ctx.createOscillator(),level=ctx.createGain();partial.type='sine';partial.frequency.value=frequency;
+      level.gain.setValueAtTime(.0001,t);level.gain.exponentialRampToValueAtTime(.045*volume,t+.003);level.gain.exponentialRampToValueAtTime(.0001,t+.75);
+      partial.connect(level);level.connect(this.master);this.nodes.add(partial);partial.onended=()=>{this.nodes.delete(partial);partial.disconnect();level.disconnect()};partial.start(t);partial.stop(t+.77);
+    }
   }
   async load(file){await this.ready();const buffer=await this.ctx.decodeAudioData(await file.arrayBuffer());this.song=buffer;return buffer.duration;}
   async start(chart,bpm,region,offset){
@@ -43,7 +48,7 @@ export class PracticeAudio {
     const horizon=this.elapsed()+.12/this.spb;
     while(this.nextStep/2<=horizon){
       const beat=this.nextStep/2,t=this.startAt+beat*this.spb;
-                                                                                       
+
       if(t>=this.ctx.currentTime-.035){
         if(this.nextStep%2===0&&(beat<0||this.click))this.voice(this.nextStep%8===0?'tick-high':'tick',t,.5);
         if(beat>=0&&this.guide)for(const n of notesAt(this.chart,loopBeat(beat,this.region)))this.voice(n.drum,t);
