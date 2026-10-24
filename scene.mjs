@@ -1,9 +1,9 @@
 import * as THREE from './vendor/three.module.js';
-import { DRUMS } from './core.mjs?v=5';
-import { canvasScore } from './notation.mjs?v=5';
-import { KIT_LAYOUT, STICK_TIP, StrikeTracker, deadAxis, normalizeRotation, stationYaw, controlAction, ROTATION_STEP } from './controller-math.mjs?v=5';
+import { DRUMS } from './core.mjs?v=6';
+import { canvasScore } from './notation.mjs?v=6';
+import { KIT_LAYOUT, STICK_TIP, StrikeTracker, deadAxis, normalizeRotation, stationYaw, controlAction, ROTATION_STEP } from './controller-math.mjs?v=6';
 
-export function createKit(container, onPad, onToggle, onAdjust = ()=>{}, onRotate = ()=>{}) {
+export function createKit(container, onPad, onToggle, onAdjust = ()=>{}, onRotate = ()=>{}, onCalibrate = ()=>{}) {
   const scene=new THREE.Scene();scene.background=new THREE.Color('#ffffff');scene.fog=new THREE.Fog('#ffffff',5,16);
   const camera=new THREE.PerspectiveCamera(45,1,.05,35);
   function desktopCamera(){camera.position.set(0,1.65,1.05);camera.rotation.set(0,0,0);camera.lookAt(0,.8,-.65);}
@@ -109,7 +109,7 @@ export function createKit(container, onPad, onToggle, onAdjust = ()=>{}, onRotat
     for(const hand of hands){
       const gp=hand.source?.gamepad;
       if(gp?.mapping==='xr-standard'){
-        for(const index of [4,5]){const pressed=Boolean(gp.buttons[index]?.pressed);if(pressed&&!hand.buttons[index]){if(index===4)onToggle();else requestRecenter();}hand.buttons[index]=pressed;}
+        for(const index of [3,4,5]){const pressed=Boolean(gp.buttons[index]?.pressed);if(pressed&&!hand.buttons[index]){if(index===3)onCalibrate();else if(index===4)onToggle();else requestRecenter();}hand.buttons[index]=pressed;}
         const axes=gp.axes,axis=axes?.length>=4?deadAxis(axes[3]):0;
         if(axis&&dt){adjusting=true;if(hand.source.handedness==='left')kitDistance=Math.max(-.25,Math.min(.6,kitDistance-axis*dt*.28));else kitHeight=Math.max(-.3,Math.min(.3,kitHeight-axis*dt*.22));}
       }
@@ -133,7 +133,7 @@ export function createKit(container, onPad, onToggle, onAdjust = ()=>{}, onRotat
   renderer.domElement.addEventListener('pointerdown',e=>{
     if(renderer.xr.isPresenting)return;
     const rect=renderer.domElement.getBoundingClientRect();pointer.set((e.clientX-rect.left)/rect.width*2-1,-(e.clientY-rect.top)/rect.height*2+1);
-    raycaster.setFromCamera(pointer,camera);const hit=raycaster.intersectObjects(pickables)[0];if(hit)onPad(hit.object.userData.drum);
+    raycaster.setFromCamera(pointer,camera);const hit=raycaster.intersectObjects(pickables)[0];if(hit)onPad(hit.object.userData.drum,{input:'pad',timeStamp:e.timeStamp});
   });
   const observer=new ResizeObserver(()=>{const w=container.clientWidth,h=container.clientHeight;camera.aspect=w/h;camera.updateProjectionMatrix();if(!renderer.xr.isPresenting)renderer.setSize(w,h);});observer.observe(container);
   renderer.xr.addEventListener('sessionstart',()=>{board.visible=true;control.visible=true;turnControl.visible=true;recenterPending=true;keepRotationOnRecenter=true;resetStrokes();});
@@ -153,11 +153,11 @@ export function createKit(container, onPad, onToggle, onAdjust = ()=>{}, onRotat
       }
       pedalMaterial.color.setHex(contacts.includes('kick')?0xffd000:0x222222);
     },
-    score(primitives,title,subtitle,running){
-      canvasScore(boardCtx,primitives,title,subtitle);boardTexture.needsUpdate=true;
+    score(primitives,title,subtitle,running,feedback='',calibrating=false){
+      canvasScore(boardCtx,primitives,title,subtitle,feedback);boardTexture.needsUpdate=true;
       controlCtx.fillStyle='#ffffff';controlCtx.fillRect(0,0,1024,120);controlCtx.strokeStyle='#111111';controlCtx.lineWidth=3;controlCtx.strokeRect(2,2,1020,116);
-      controlCtx.fillStyle='#111111';controlCtx.font='29px monospace';controlCtx.textAlign='center';controlCtx.fillText(running?'STOP PRACTICE  /  A OR X':'START PRACTICE  /  A OR X',512,44);
-      controlCtx.font='21px monospace';controlCtx.fillText('TRIGGER: KICK   |   B / Y: RECENTER',512,84);
+      controlCtx.fillStyle='#111111';controlCtx.font='29px monospace';controlCtx.textAlign='center';controlCtx.fillText(calibrating?'CANCEL CALIBRATION / A, X OR STICK CLICK':running?'STOP PRACTICE  /  A OR X':'START PRACTICE  /  A OR X',512,44);
+      controlCtx.font='19px monospace';controlCtx.fillText('TRIGGER: KICK | B/Y: RECENTER | STICK CLICK: CALIBRATE',512,84);
       controlTexture.needsUpdate=true;
       turnCtx.fillStyle='#ffffff';turnCtx.fillRect(0,0,1024,120);turnCtx.strokeStyle='#111111';turnCtx.lineWidth=3;turnCtx.strokeRect(2,2,1020,116);
       turnCtx.beginPath();for(const x of[341,683]){turnCtx.moveTo(x,2);turnCtx.lineTo(x,118);}turnCtx.stroke();

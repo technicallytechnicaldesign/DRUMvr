@@ -1,0 +1,179 @@
+{
+  "version": 2,
+  "title": "Sixteenths at two tempos",
+  "bpm": 60,
+  "beatsPerBar": 4,
+  "bars": 2,
+  "notes": [
+    {
+      "beat": 0,
+      "drum": "hihat"
+    },
+    {
+      "beat": 0,
+      "drum": "kick"
+    },
+    {
+      "beat": 0.25,
+      "drum": "hihat"
+    },
+    {
+      "beat": 0.5,
+      "drum": "hihat"
+    },
+    {
+      "beat": 0.75,
+      "drum": "hihat"
+    },
+    {
+      "beat": 1,
+      "drum": "hihat"
+    },
+    {
+      "beat": 1,
+      "drum": "snare"
+    },
+    {
+      "beat": 1.25,
+      "drum": "hihat"
+    },
+    {
+      "beat": 1.5,
+      "drum": "hihat"
+    },
+    {
+      "beat": 1.75,
+      "drum": "hihat"
+    },
+    {
+      "beat": 2,
+      "drum": "hihat"
+    },
+    {
+      "beat": 2,
+      "drum": "kick"
+    },
+    {
+      "beat": 2.25,
+      "drum": "hihat"
+    },
+    {
+      "beat": 2.5,
+      "drum": "hihat"
+    },
+    {
+      "beat": 2.75,
+      "drum": "hihat"
+    },
+    {
+      "beat": 3,
+      "drum": "hihat"
+    },
+    {
+      "beat": 3,
+      "drum": "snare"
+    },
+    {
+      "beat": 3.25,
+      "drum": "hihat"
+    },
+    {
+      "beat": 3.5,
+      "drum": "hihat"
+    },
+    {
+      "beat": 3.75,
+      "drum": "hihat"
+    },
+    {
+      "beat": 4,
+      "drum": "hihat"
+    },
+    {
+      "beat": 4,
+      "drum": "kick"
+    },
+    {
+      "beat": 4.25,
+      "drum": "hihat"
+    },
+    {
+      "beat": 4.5,
+      "drum": "hihat"
+    },
+    {
+      "beat": 4.75,
+      "drum": "hihat"
+    },
+    {
+      "beat": 5,
+      "drum": "hihat"
+    },
+    {
+      "beat": 5,
+      "drum": "snare"
+    },
+    {
+      "beat": 5.25,
+      "drum": "hihat"
+    },
+    {
+      "beat": 5.5,
+      "drum": "hihat"
+    },
+    {
+      "beat": 5.75,
+      "drum": "hihat"
+    },
+    {
+      "beat": 6,
+      "drum": "hihat"
+    },
+    {
+      "beat": 6,
+      "drum": "kick"
+    },
+    {
+      "beat": 6.25,
+      "drum": "hihat"
+    },
+    {
+      "beat": 6.5,
+      "drum": "hihat"
+    },
+    {
+      "beat": 6.75,
+      "drum": "hihat"
+    },
+    {
+      "beat": 7,
+      "drum": "hihat"
+    },
+    {
+      "beat": 7,
+      "drum": "snare"
+    },
+    {
+      "beat": 7.25,
+      "drum": "hihat"
+    },
+    {
+      "beat": 7.5,
+      "drum": "hihat"
+    },
+    {
+      "beat": 7.75,
+      "drum": "hihat"
+    }
+  ],
+  "tempoMap": [
+    {
+      "beat": 0,
+      "bpm": 60
+    },
+    {
+      "beat": 4,
+      "bpm": 90
+    }
+  ]
+}

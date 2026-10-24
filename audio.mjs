@@ -1,4 +1,4 @@
-import { notesAt, loopBeat, audioRegion } from './core.mjs?v=5';
+import { notesAt, loopBeat, audioRegion, practiceTimeline, tempoAt, maxPracticeBpm } from './core.mjs?v=6';
 export class PracticeAudio {
   constructor(){this.ctx=null;this.running=false;this.nodes=new Set();this.song=null;this.guide=true;this.click=true;this.generation=0;this.cache=null;}
   async ready(){
@@ -42,7 +42,7 @@ export class PracticeAudio {
     const channels=Array.from({length:song.numberOfChannels},(_,c)=>song.getChannelData(c).slice(first,last));
     let samples=channels;
     if(rate!==1)samples=await new Promise((resolve,reject)=>{
-      const worker=new Worker(new URL('./stretch-worker.mjs?v=5',import.meta.url),{type:'module'});
+      const worker=new Worker(new URL('./stretch-worker.mjs?v=6',import.meta.url),{type:'module'});
       const finish=()=>{worker.terminate();this.cancelPreparation=null;};
       this.cancelPreparation=()=>{finish();reject(new DOMException('Preparation cancelled.','AbortError'));};
       worker.onmessage=({data})=>{finish();data.error?reject(Error(data.error)):resolve(data.channels);};
@@ -56,14 +56,14 @@ export class PracticeAudio {
     this.stop();const generation=this.generation;await this.ready();
     if(generation!==this.generation)throw new DOMException('Preparation cancelled.','AbortError');
     const rate=bpm/chart.bpm;
-    if(!Number.isFinite(bpm)||bpm<1||bpm>200)throw Error('Practice BPM must be between 1 and 200.');
+    if(!Number.isFinite(bpm)||bpm<chart.bpm*.5||bpm>maxPracticeBpm(chart)+1e-8)throw Error('Choose a practice tempo within the displayed range.');
     if(this.song&&(rate<.5||rate>4))throw Error('Choose a song speed between 50% and 400%.');
     const songRegion=this.song?audioRegion(chart,region,offset,this.song.duration):null;
     const buffer=songRegion?await this.prepareSong(this.song,songRegion,rate):null;
     if(generation!==this.generation)throw new DOMException('Preparation cancelled.','AbortError');
-    this.chart=chart;this.region=region;this.spb=60/bpm;this.nextStep=-8;this.startAt=this.ctx.currentTime+.1+4*this.spb;
+    this.chart=chart;this.region=region;this.timeline=practiceTimeline(chart,region,bpm);this.spb=this.timeline.countSpb;this.nextStep=-16;this.startAt=this.ctx.currentTime+.1+4*this.spb;
     if(songRegion){
-      const src=this.ctx.createBufferSource();src.buffer=buffer;src.loop=true;src.loopStart=0;src.loopEnd=buffer.duration;src.playbackRate.value=buffer.duration/(region.length*this.spb);
+      const src=this.ctx.createBufferSource();src.buffer=buffer;src.loop=true;src.loopStart=0;src.loopEnd=buffer.duration;src.playbackRate.value=buffer.duration/this.timeline.loopSeconds;
       const gain=this.ctx.createGain();gain.gain.value=1.5;gain.connect(this.master);src.connect(gain);
       this.nodes.add(src);src.onended=()=>{this.nodes.delete(src);src.disconnect();gain.disconnect()};src.start(this.startAt);
     }
@@ -71,18 +71,20 @@ export class PracticeAudio {
   }
   tick(){
     if(!this.running)return;
-    const horizon=this.elapsed()+.12/this.spb;
-    while(this.nextStep/2<=horizon){
-      const beat=this.nextStep/2,t=this.startAt+beat*this.spb;
+    const horizon=this.ctx.currentTime+.12;
+    const elapsed=this.elapsed();this.spb=60/(tempoAt(this.chart,loopBeat(Math.max(0,elapsed),this.region))*this.timeline.rate);
+    if(this.timeAt(this.nextStep/4)<this.ctx.currentTime-.2)this.nextStep=Math.ceil(this.timeline.beatAt(this.ctx.currentTime-this.startAt)*4);
+    while(this.timeAt(this.nextStep/4)<=horizon){
+      const beat=this.nextStep/4,t=this.timeAt(beat);
 
       if(t>=this.ctx.currentTime-.035){
-        if(this.nextStep%2===0&&(beat<0||this.click))this.voice(this.nextStep%8===0?'tick-high':'tick',t,.5);
+        if(this.nextStep%4===0&&(beat<0||this.click))this.voice(this.nextStep%16===0?'tick-high':'tick',t,.5);
         if(beat>=0&&this.guide)for(const n of notesAt(this.chart,loopBeat(beat,this.region)))this.voice(n.drum,t);
       }
       this.nextStep++;
-      if(this.nextStep/2<horizon-4)this.nextStep=Math.ceil((horizon-4)*2);
     }
   }
-  elapsed(){return this.ctx?(this.ctx.currentTime-this.startAt)/this.spb:0;}
+  timeAt(beat){return this.startAt+this.timeline.secondsAt(beat);}
+  elapsed(){return this.ctx&&this.timeline?this.timeline.beatAt(this.ctx.currentTime-this.startAt):0;}
   stop(){this.generation++;this.cancelPreparation?.();this.running=false;clearInterval(this.timer);for(const src of [...this.nodes]){try{src.stop()}catch{}}this.nodes.clear();}
 }

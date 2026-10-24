@@ -1,4 +1,4 @@
-import { stretchLoop } from './stretch.mjs?v=5';
+import { stretchLoop } from './stretch.mjs?v=6';
 self.onmessage = ({data}) => {
   try {
     const channels = stretchLoop(data.channels, data.sampleRate, data.rate);
