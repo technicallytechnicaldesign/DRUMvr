@@ -1,7 +1,7 @@
-import { DRUMS, PRESETS, makePreset, validateChart, loopRegion, loopBeat, notesAt, midiDrum } from './core.mjs?v=4';
-import { notation, svgScore } from './notation.mjs?v=4';
-import { PracticeAudio } from './audio.mjs?v=4';
-import { normalizeRotation, ROTATION_STEP } from './controller-math.mjs?v=4';
+import { DRUMS, PRESETS, makePreset, validateChart, loopRegion, loopBeat, notesAt, midiDrum } from './core.mjs?v=5';
+import { notation, svgScore } from './notation.mjs?v=5';
+import { PracticeAudio } from './audio.mjs?v=5';
+import { normalizeRotation, ROTATION_STEP } from './controller-math.mjs?v=5';
 const $=id=>document.getElementById(id),audio=new PracticeAudio();
 let chart=makePreset(),kit=null,region=loopRegion(chart,1,2),running=false,starting=false,lastPaint=0,midi=null,session=null,manualHits={};
 const status=(text,error=false)=>{$('status').textContent=text;$('status').classList.toggle('error',error)};
@@ -14,20 +14,22 @@ $('rotate-left').onclick=()=>rotateKit(kitRotation+ROTATION_STEP);
 $('rotate-right').onclick=()=>rotateKit(kitRotation-ROTATION_STEP);
 $('rotate-reset').onclick=()=>rotateKit(0);
 showRotation();
-const locked=['exercise','tempo','first-bar','last-bar','song-file','offset','chart-file','clear-song'];
+const locked=['exercise','tempo','song-speed','first-bar','last-bar','song-file','offset','chart-file','clear-song'];
+function showSpeed(){const rate=Number($('tempo').value)/chart.bpm;$('speed-value').textContent=`${Number((rate*100).toFixed(1))}%`;$('song-speed').value=[.5,.75,1].includes(rate)?String(rate):'';}
+function tempoLimits(){$('tempo').min=chart.bpm*.5;$('tempo').max=Math.min(200,chart.bpm*4);$('tempo').step='any';}
 function stop(message='Stopped. Start again for a four-beat count-in.'){
   running=false;audio.stop();$('play').textContent='Start practice';locked.forEach(id=>$(id).disabled=false);$('clear-song').disabled=!audio.song;status(message);paint(true);
 }
 async function toggle(){
-  if(starting)return;
+  if(starting){stop('Song preparation cancelled.');return}
   if(running){stop();return}
-  starting=true;$('play').disabled=true;
+  starting=true;locked.forEach(id=>$(id).disabled=true);$('play').textContent='Cancel preparation';status(audio.song?'Preparing song at the chosen speed...':'Preparing practice...');
   try{
     region=loopRegion(chart,Number($('first-bar').value),Number($('last-bar').value));
     audio.guide=$('guide').checked;audio.click=$('click').checked;
     await audio.start(chart,Number($('tempo').value),region,Number($('offset').value));running=true;locked.forEach(id=>$(id).disabled=true);
-    $('play').textContent='Stop practice';paint(true);status(audio.song?`Four beats in, then song + chart at ${Math.round(Number($('tempo').value)/chart.bpm*100)}% speed, starting at ${(Number($('offset').value)+region.start*60/chart.bpm).toFixed(2)}s.`:'Four beats in, then follow the score and the lit drums.');
-  }catch(e){audio.stop();status(e.message,true)}finally{starting=false;$('play').disabled=false}
+    $('play').textContent='Stop practice';paint(true);status(audio.song?`Four beats in, then song + chart at ${Number((Number($('tempo').value)/chart.bpm*100).toFixed(1))}% speed, pitch preserved, starting at ${(Number($('offset').value)+region.start*60/chart.bpm).toFixed(2)}s.`:'Four beats in, then follow the score and the lit drums.');
+  }catch(e){stop(e.name==='AbortError'?'Song preparation cancelled.':e.message);if(e.name!=='AbortError')status(e.message,true)}finally{starting=false;$('play').disabled=false}
 }
 function hit(drum,options={}){
   const play=()=>{audio.voice(drum,audio.ctx.currentTime,options.volume??1);manualHits[drum]=performance.now()+150;status(`${DRUMS[drum].label} contact${options.hand?' / '+options.hand:''}.`)};
@@ -36,7 +38,7 @@ function hit(drum,options={}){
 }
 function setChart(next){
   stop('Chart ready. Set your tempo, then start practice.');chart=next;
-  $('tempo').value=chart.bpm;$('tempo-value').textContent=chart.bpm;
+  tempoLimits();$('tempo').value=chart.bpm;$('tempo-value').textContent=Number(chart.bpm.toFixed(2));showSpeed();
   for(const id of ['first-bar','last-bar'])$(id).max=chart.bars;
   $('first-bar').value=1;$('last-bar').value=Math.min(2,chart.bars);region=loopRegion(chart,1,Math.min(2,chart.bars));paint(true);
 }
@@ -65,7 +67,9 @@ $('play').onclick=toggle;
 document.querySelector('a[href="#controls-help"]').onclick=()=>$('controls-help').open=true;
 $('exercise').onchange=()=>{setChart(makePreset($('exercise').value));$('lesson').textContent=PRESETS[$('exercise').value].description};
 $('lesson').textContent=PRESETS.backbeat.description;
-$('tempo').oninput=()=>{$('tempo-value').textContent=$('tempo').value;paint(true)};
+$('tempo').oninput=()=>{$('tempo-value').textContent=Number(Number($('tempo').value).toFixed(2));showSpeed();paint(true)};
+$('song-speed').onchange=()=>{if(!$('song-speed').value)return;$('tempo').value=chart.bpm*Number($('song-speed').value);$('tempo').oninput();};
+tempoLimits();showSpeed();
 for(const id of ['first-bar','last-bar'])$(id).onchange=()=>{try{region=loopRegion(chart,Number($('first-bar').value),Number($('last-bar').value));paint(true);status('Loop range updated.')}catch(e){status(e.message,true)}};
 function adjust(){kit?.adjust($('mirror').checked,Number($('height').value)/100,Number($('distance').value)/100);$('height-value').textContent=`${$('height').value} cm`;$('distance-value').textContent=`${$('distance').value} cm`}
 for(const id of ['mirror','height','distance'])$(id).oninput=adjust;
@@ -75,7 +79,7 @@ $('song-file').onchange=async()=>{
   $('play').disabled=true;status('Decoding your local audio file...');
   try{const duration=await audio.load(file);$('song-status').textContent=`${file.name} / ${duration.toFixed(1)} seconds`;$('clear-song').disabled=false;status('Song loaded. Set its first downbeat offset and import a matching chart.')}catch(e){status(`Cannot read this audio: ${e.message}`,true)}finally{$('play').disabled=false}
 };
-$('clear-song').onclick=()=>{audio.song=null;$('song-file').value='';$('song-status').textContent='Optional. Choose audio from this device.';$('clear-song').disabled=true;status('Song removed.')};
+$('clear-song').onclick=()=>{audio.song=null;audio.cache=null;$('song-file').value='';$('song-status').textContent='Optional. Choose audio from this device.';$('clear-song').disabled=true;status('Song removed.')};
 $('chart-file').onchange=async()=>{
   const file=$('chart-file').files[0];if(!file)return;
   try{const value=validateChart(JSON.parse(await file.text()));setChart(value);$('lesson').textContent='Imported chart. Align the song downbeat and choose a loop.';$('exercise').selectedIndex=-1}catch(e){status(`Chart rejected: ${e.message}`,true)}
@@ -94,7 +98,7 @@ document.addEventListener('keydown',e=>{
   const drum=Object.keys(DRUMS).find(d=>DRUMS[d].key===e.key.toUpperCase());if(drum){e.preventDefault();hit(drum)}
   if(e.code==='Space'){e.preventDefault();toggle()}
 });
-document.addEventListener('visibilitychange',()=>{if(document.hidden&&running&&!session)stop('Practice stopped while the tab was hidden. Start again when ready.')});
+document.addEventListener('visibilitychange',()=>{if(document.hidden&&(running||starting)&&!session)stop('Practice stopped while the tab was hidden. Start again when ready.')});
 $('vr').onclick=async()=>{
   try{
     if(session){await session.end();return}
@@ -106,6 +110,6 @@ $('vr').onclick=async()=>{
   }catch(e){if(session){try{await session.end()}catch{}session=null}status(`Cannot enter VR: ${e.message}`,true)}
 };
 try{
-  const {createKit}=await import('./scene.mjs?v=4');kit=createKit(document.querySelector('.scene'),hit,toggle,(height,distance)=>{$('height').value=Math.round(height*100);$('distance').value=Math.round(distance*100);$('height-value').textContent=`${Math.round(height*100)} cm`;$('distance-value').textContent=`${Math.round(distance*100)} cm`},rotationChanged);kit.rotate(kitRotation);$('loading').remove();kit.animate(()=>paint());$('play').disabled=false;status('Ready. Free play with the pads, or start a guided practice.');paint(true);
+  const {createKit}=await import('./scene.mjs?v=5');kit=createKit(document.querySelector('.scene'),hit,toggle,(height,distance)=>{$('height').value=Math.round(height*100);$('distance').value=Math.round(distance*100);$('height-value').textContent=`${Math.round(height*100)} cm`;$('distance-value').textContent=`${Math.round(distance*100)} cm`},rotationChanged);kit.rotate(kitRotation);$('loading').remove();kit.animate(()=>paint());$('play').disabled=false;status('Ready. Free play with the pads, or start a guided practice.');paint(true);
   if(navigator.xr&&window.isSecureContext&&await navigator.xr.isSessionSupported('immersive-vr')){$('vr').disabled=false;$('vr').textContent='Enter VR'}else $('vr').textContent='VR headset needed';
 }catch(e){$('loading').textContent='The 3D kit could not load. See the setup notes.';$('play').disabled=false;status(`3D unavailable: ${e.message}. The score and audio still work.`,true);const frame=()=>{paint();requestAnimationFrame(frame)};frame();$('vr').textContent='VR unavailable'}

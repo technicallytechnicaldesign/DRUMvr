@@ -1,4 +1,4 @@
-import { DRUMS, notesAt } from './core.mjs?v=4';
+import { DRUMS, notesAt } from './core.mjs?v=5';
 
 export function notation(chart, pageBar, cursorBeat, activeDrums = []) {
   const p = [];

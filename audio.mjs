@@ -1,6 +1,6 @@
-import { notesAt, loopBeat, audioRegion } from './core.mjs?v=4';
+import { notesAt, loopBeat, audioRegion } from './core.mjs?v=5';
 export class PracticeAudio {
-  constructor(){this.ctx=null;this.running=false;this.nodes=new Set();this.song=null;this.guide=true;this.click=true;}
+  constructor(){this.ctx=null;this.running=false;this.nodes=new Set();this.song=null;this.guide=true;this.click=true;this.generation=0;this.cache=null;}
   async ready(){
     if(!this.ctx){
       this.ctx=new AudioContext({latencyHint:'interactive'});
@@ -31,15 +31,41 @@ export class PracticeAudio {
       partial.connect(level);level.connect(this.master);this.nodes.add(partial);partial.onended=()=>{this.nodes.delete(partial);partial.disconnect();level.disconnect()};partial.start(t);partial.stop(t+.77);
     }
   }
-  async load(file){await this.ready();const buffer=await this.ctx.decodeAudioData(await file.arrayBuffer());this.song=buffer;return buffer.duration;}
+  async load(file){await this.ready();const buffer=await this.ctx.decodeAudioData(await file.arrayBuffer());this.song=buffer;this.cache=null;return buffer.duration;}
+  async prepareSong(song,region,rate){
+    const key=[region.start,region.end,rate].join(':');
+    if(this.cache?.song===song&&this.cache.key===key)return this.cache.buffer;
+    const first=Math.round(region.start*song.sampleRate),last=Math.min(song.length,Math.round(region.end*song.sampleRate));
+    const frames=last-first,outputFrames=Math.round(frames/rate);
+    if(frames*song.numberOfChannels*4+outputFrames*(song.numberOfChannels*8+4)>128*1024*1024)throw Error('This song loop is too long at this speed. Choose fewer bars.');
+    this.cache=null;
+    const channels=Array.from({length:song.numberOfChannels},(_,c)=>song.getChannelData(c).slice(first,last));
+    let samples=channels;
+    if(rate!==1)samples=await new Promise((resolve,reject)=>{
+      const worker=new Worker(new URL('./stretch-worker.mjs?v=5',import.meta.url),{type:'module'});
+      const finish=()=>{worker.terminate();this.cancelPreparation=null;};
+      this.cancelPreparation=()=>{finish();reject(new DOMException('Preparation cancelled.','AbortError'));};
+      worker.onmessage=({data})=>{finish();data.error?reject(Error(data.error)):resolve(data.channels);};
+      worker.onerror=()=>{finish();reject(Error('Song slowdown could not prepare. Try a shorter loop or reload the page.'));};
+      worker.postMessage({channels,sampleRate:song.sampleRate,rate},channels.map(c=>c.buffer));
+    });
+    const buffer=this.ctx.createBuffer(samples.length,samples[0].length,song.sampleRate);
+    samples.forEach((c,i)=>buffer.copyToChannel(c,i));this.cache={song,key,buffer};return buffer;
+  }
   async start(chart,bpm,region,offset){
-    this.stop();await this.ready();
+    this.stop();const generation=this.generation;await this.ready();
+    if(generation!==this.generation)throw new DOMException('Preparation cancelled.','AbortError');
+    const rate=bpm/chart.bpm;
+    if(!Number.isFinite(bpm)||bpm<1||bpm>200)throw Error('Practice BPM must be between 1 and 200.');
+    if(this.song&&(rate<.5||rate>4))throw Error('Choose a song speed between 50% and 400%.');
     const songRegion=this.song?audioRegion(chart,region,offset,this.song.duration):null;
+    const buffer=songRegion?await this.prepareSong(this.song,songRegion,rate):null;
+    if(generation!==this.generation)throw new DOMException('Preparation cancelled.','AbortError');
     this.chart=chart;this.region=region;this.spb=60/bpm;this.nextStep=-8;this.startAt=this.ctx.currentTime+.1+4*this.spb;
     if(songRegion){
-      const src=this.ctx.createBufferSource();src.buffer=this.song;src.loop=true;src.loopStart=songRegion.start;src.loopEnd=songRegion.end;src.playbackRate.value=bpm/chart.bpm;
+      const src=this.ctx.createBufferSource();src.buffer=buffer;src.loop=true;src.loopStart=0;src.loopEnd=buffer.duration;src.playbackRate.value=buffer.duration/(region.length*this.spb);
       const gain=this.ctx.createGain();gain.gain.value=1.5;gain.connect(this.master);src.connect(gain);
-      this.nodes.add(src);src.onended=()=>{this.nodes.delete(src);src.disconnect();gain.disconnect()};src.start(this.startAt,songRegion.start);
+      this.nodes.add(src);src.onended=()=>{this.nodes.delete(src);src.disconnect();gain.disconnect()};src.start(this.startAt);
     }
     this.running=true;this.tick();this.timer=setInterval(()=>this.tick(),25);
   }
@@ -58,5 +84,5 @@ export class PracticeAudio {
     }
   }
   elapsed(){return this.ctx?(this.ctx.currentTime-this.startAt)/this.spb:0;}
-  stop(){this.running=false;clearInterval(this.timer);for(const src of [...this.nodes]){try{src.stop()}catch{}}this.nodes.clear();}
+  stop(){this.generation++;this.cancelPreparation?.();this.running=false;clearInterval(this.timer);for(const src of [...this.nodes]){try{src.stop()}catch{}}this.nodes.clear();}
 }

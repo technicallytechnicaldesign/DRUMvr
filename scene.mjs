@@ -1,7 +1,7 @@
 import * as THREE from './vendor/three.module.js';
-import { DRUMS } from './core.mjs?v=4';
-import { canvasScore } from './notation.mjs?v=4';
-import { KIT_LAYOUT, STICK_TIP, StrikeTracker, deadAxis, normalizeRotation, stationYaw, controlAction, ROTATION_STEP } from './controller-math.mjs?v=4';
+import { DRUMS } from './core.mjs?v=5';
+import { canvasScore } from './notation.mjs?v=5';
+import { KIT_LAYOUT, STICK_TIP, StrikeTracker, deadAxis, normalizeRotation, stationYaw, controlAction, ROTATION_STEP } from './controller-math.mjs?v=5';
 
 export function createKit(container, onPad, onToggle, onAdjust = ()=>{}, onRotate = ()=>{}) {
   const scene=new THREE.Scene();scene.background=new THREE.Color('#ffffff');scene.fog=new THREE.Fog('#ffffff',5,16);
